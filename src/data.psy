@@ -1,0 +1,47 @@
+pam_tuple_type ::= enum
+{
+	.black_and_white := 1;
+	.grayscale := 2;
+	.rgb := 3;
+	.black_and_white_alpha := 4;
+	.grayscale_alpha := 5;
+	.rgb_alpha := 6;
+};
+
+pam_error_code ::= enum
+{
+	.invalid_header := 1;
+	.unexpected_eof := 2;
+};
+
+pam ::= struct
+{
+	width : u64;
+	height : u64;
+	depth : u64;
+	maxval : u64;
+	tuple_type : pam_tuple_type;
+	data : u8?;
+	data_len : u64;
+
+	err : pam_error_code;
+};
+
+pam_verbose_print ::= func(p : pam -> v0)
+{
+	putzstr("pam image (");
+	putuint(p.width);
+	putzstr(" x ");
+	putuint(p.height);
+	putzstr("), depth=");
+	putuint(p.depth);
+	putzstr(", max=");
+	putuint(p.maxval);
+	putzstr(", tupletype=");
+	putzstr(__enumname(p.tuple_type));
+	putzstr(", ");
+	putuint(p.data_len);
+	putzstr(" bytes of imgdata...");
+	putchar(10);
+	
+};

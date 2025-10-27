@@ -3,7 +3,7 @@
 	add_source_directory("src");
 }
 
-impl_pam_fully_read_file ::= func(path : u8?, a : arena mut? -> u8 mut?)
+impl_pam_fully_read_file ::= func(path : u8?, a : arena mut?, out_len : u64 mut? -> u8 mut?)
 {
 	if(!file_exists(path))
 	{
@@ -31,21 +31,23 @@ impl_pam_fully_read_file ::= func(path : u8?, a : arena mut? -> u8 mut?)
 	data : u8 mut? := arena_alloc(a, len + 1);
 	file_read(path, data, len);
 	deref(data # len) = 0;
+	deref(out_len) = len;
 	return data;
 };
 
 pam_parse_buffer_named ::= func(name : u8?, buf : u8?, len : u64, a : arena mut? -> pam)
 {
-	return zero;
+	return impl_pam_parse_buffer_named(name, buf, len, a);
 };
 
 pam_parse_buffer ::= func(buf : u8?, len : u64, a : arena mut? -> pam)
 {
-	return pam_parse_buffer_names("<untitled pam buffer>", buf, len, a);
+	return pam_parse_buffer_named("<untitled pam buffer>", buf, len, a);
 };
 
 pam_parse_file ::= func(path : u8?, a : arena mut? -> pam)
 {
-	source ::= impl_pam_fully_read_file(path, a);
-	return pam_parse_buffer_named(path, source, zstrlen(source), a);
+	len : u64 mut;
+	source ::= impl_pam_fully_read_file(path, a, ref len);
+	return pam_parse_buffer_named(path, source, len, a);
 };

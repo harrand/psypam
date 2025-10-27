@@ -1,0 +1,130 @@
+impl_pam_parse_buffer_named ::= func(name : u8?, buf : u8?, len : u64, a : arena mut? -> pam)
+{
+	cursor : u8? mut := buf;
+	ret : pam mut := zero;
+	hdr_end ::= impl_pam_parse_hdr(cursor, len, ref ret);
+	cursor = cursor # hdr_end;
+	// rest is just the img data
+	if(hdr_end >= len)
+	{
+		ret.err = (pam_error_code.unexpected_eof);
+	}
+	ret.data_len = (len - hdr_end);
+	ret.data = arena_alloc(a, ret.data_len);
+	memcopy(ret.data, cursor, ret.data_len);
+	return ret;
+};
+
+impl_pam_parse_hdr ::= func(buf : u8?, len : u64, p : pam mut? -> u64)
+{
+	// first 2 bytes should be P7
+	magic ::= deref(buf@u8[2]?);
+	off : u64 mut := 0;
+	if(deref(magic # 0) != 'P')
+	{
+		p->err = (pam_error_code.invalid_header);
+		return zero;
+	}
+	if(deref(magic # 1) != '7')
+	{
+		p->err = (pam_error_code.invalid_header);
+		return zero;
+	}
+	// 3 as P7\n
+	off = off + 3;
+
+	tmpoff : u64 mut := -1;
+	while(tmpoff != 0)
+	{
+		tmpoff = impl_pam_parse_hdr_line(buf # off, len - off, p);
+		off = off + tmpoff;
+	}
+	return off;
+};
+
+impl_pam_parse_hdr_line ::= func(buf : u8?, len : u64, p : pam mut? -> u64)
+{
+	// add 1 for the space, n for the int width, and another 1 for the newline
+	if(streql_n(buf, "WIDTH", 5))
+	{
+		return 7 + impl_parse_int(buf # 6, ref(p->width));
+	}
+	if(streql_n(buf, "HEIGHT", 6))
+	{
+		return 8 + impl_parse_int(buf # 7, ref(p->height));
+	}
+	if(streql_n(buf, "DEPTH", 5))
+	{
+		return 7 + impl_parse_int(buf # 6, ref(p->depth));
+	}
+	if(streql_n(buf, "MAXVAL", 6))
+	{
+		return 8 + impl_parse_int(buf # 7, ref(p->maxval));
+	}
+	if(streql_n(buf, "TUPLTYPE", 8))
+	{
+		return 10 + impl_parse_tuple_type(buf # 9, ref(p->tuple_type));
+	}
+	if(streql_n(buf, "ENDHDR", 6))
+	{
+		return 7;
+	}
+
+	return zero;
+};
+
+impl_parse_int ::= func(buf : u8?, result : u64 mut? -> u64)
+{
+	cur : u64 mut := 0;
+	i : u64 mut := 0;
+	while(true)
+	{
+		digit ::= deref(buf # i);
+		if((digit >= '0') && (digit <= '9'))
+		{
+			cur = (cur * 10 + ((digit - '0')@_));
+		}
+		else
+		{
+			deref(result) = cur;
+			return i;
+		}
+		i = i + 1;
+	}
+	return zero;
+};
+
+impl_parse_tuple_type ::= func(buf : u8?, result : pam_tuple_type mut? -> u64)
+{
+	if(streql_n(buf, "BLACKANDWHITE_ALPHA", 19))
+	{
+		deref(result) = (pam_tuple_type.black_and_white_alpha);
+		return 19;
+	}
+	if(streql_n(buf, "GRAYSCALE_ALPHA", 15))
+	{
+		deref(result) = (pam_tuple_type.grayscale_alpha);
+		return 15;
+	}
+	if(streql_n(buf, "RGB_ALPHA", 9))
+	{
+		deref(result) = (pam_tuple_type.rgb_alpha);
+		return 9;
+	}
+	if(streql_n(buf, "BLACKANDWHITE", 13))
+	{
+		deref(result) = (pam_tuple_type.black_and_white);
+		return 13;
+	}
+	if(streql_n(buf, "GRAYSCALE", 9))
+	{
+		deref(result) = (pam_tuple_type.grayscale);
+		return 9;
+	}
+	if(streql_n(buf, "RGB", 3))
+	{
+		deref(result) = (pam_tuple_type.rgb);
+		return 3;
+	}
+	return zero;
+};
