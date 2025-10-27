@@ -1,0 +1,51 @@
+== default ==
+{
+	add_source_directory("src");
+}
+
+impl_pam_fully_read_file ::= func(path : u8?, a : arena mut? -> u8 mut?)
+{
+	if(!file_exists(path))
+	{
+		putzstr("file ");
+		putchar('"');
+		putzstr(path);
+		putchar('"');
+		putzstr(" could not be located (cwd: ");
+		cwd : u8? mut;
+		cwdlen : u64 mut;
+		directory_get_cwd(ref cwd, ref cwdlen, a);
+		putbytes(cwd, cwdlen);
+		putzstr(")");
+		__debugbreak();
+	}
+	len ::= file_size_bytes(path);
+	if(len == 0)
+	{
+		putzstr("warning: file ");
+		putchar('"');
+		putzstr(path);
+		putchar('"');
+		putzstr(" exists but is empty");
+	}
+	data : u8 mut? := arena_alloc(a, len + 1);
+	file_read(path, data, len);
+	deref(data # len) = 0;
+	return data;
+};
+
+pam_parse_buffer_named ::= func(name : u8?, buf : u8?, len : u64, a : arena mut? -> pam)
+{
+	return zero;
+};
+
+pam_parse_buffer ::= func(buf : u8?, len : u64, a : arena mut? -> pam)
+{
+	return pam_parse_buffer_names("<untitled pam buffer>", buf, len, a);
+};
+
+pam_parse_file ::= func(path : u8?, a : arena mut? -> pam)
+{
+	source ::= impl_pam_fully_read_file(path, a);
+	return pam_parse_buffer_named(path, source, zstrlen(source), a);
+};
