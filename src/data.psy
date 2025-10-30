@@ -21,8 +21,8 @@ pam ::= struct
 	depth : u64;
 	maxval : u64;
 	tuple_type : pam_tuple_type;
-	data : u8?;
 	data_len : u64;
+	data : u8?;
 
 	err : pam_error_code;
 };
